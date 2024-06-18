@@ -1,0 +1,27 @@
+FROM ubuntu:latest
+ENV SHELL=/bin/bash
+
+MAINTAINER Daniel Mateos <daniel.mateos23@educa.madrid.org>
+
+RUN apt update && apt upgrade -y
+RUN apt install -y openssh-server sudo net-tools dnsutils
+
+COPY samurai_pass/* /etc/samurai_pass/
+COPY usuarios.sh /etc/samurai_scripts/
+
+RUN for i in $(seq 0 9); do \
+        useradd -ms /bin/bash samurai$i -c "samurai$i level$i"; \
+        pass=$(cat /etc/samurai_pass/samurai$i); \
+        echo "samurai$i:$pass" | chpasswd; \
+        chmod 400 /etc/samurai_pass/samurai$i; \
+        chown samurai$i:samurai$i /etc/samurai_pass/samurai$i; \
+        if [ $i -eq 0 ]; then \
+            cp /etc/samurai_pass/samurai$i /home/samurai$i/README; \
+        fi; \
+done
+
+
+RUN sed -i 's/#Port 22/Port 2220/g' /etc/ssh/sshd_config
+CMD sh /etc/samurai_scripts/usuarios.sh
+
+CMD service ssh start && service ssh restart && tail -f /dev/null
